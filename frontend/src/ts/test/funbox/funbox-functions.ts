@@ -22,6 +22,9 @@ import * as IPAddresses from "../../utils/ip-addresses";
 import * as TestState from "../test-state";
 import { WordGenError } from "../../utils/word-gen-error";
 import { FunboxName, KeymapLayout, Layout } from "@monkeytype/schemas/configs";
+import { LLMWordGenerator } from "../llm/llm-word-generator";
+import { Gpt2WordGenerator } from "../llm/gpt2-word-generator";
+import * as Loader from "../../elements/loader";
 import { Language, LanguageObject } from "@monkeytype/schemas/languages";
 
 export type FunboxFunctions = {
@@ -453,6 +456,62 @@ const list: Partial<Record<FunboxName, FunboxFunctions>> = {
             ),
         );
       }, 1);
+    },
+  },
+  llm: {
+    async withWords(words?: string[]): Promise<Wordset> {
+      if (words === undefined) {
+        throw new WordGenError("LLM funbox requires a word list");
+      }
+
+      // Using DistilGPT-2 (~82M params) - a true BASE model
+      // Just pretrained for next-token prediction, no RLHF or instruction tuning
+      const generator = new LLMWordGenerator(words, {
+        modelId: "Xenova/distilgpt2",
+        maxContextTokens: 10, // Small context window to prevent going off rails
+        bufferMinWords: 5,
+        batchSize: 15,
+        temperature: 0.9,
+        topP: 0.95,
+      });
+
+      // Set up progress callback to show loading UI
+      generator.onProgress = (progress) => {
+        Loader.show();
+      };
+
+      // Wait for the engine to be ready before returning
+      // This ensures the generator is usable immediately
+      try {
+        await generator.waitForReady();
+        Loader.hide();
+      } catch (error) {
+        Loader.hide();
+        const message =
+          error instanceof Error ? error.message : "Unknown error";
+        throw new WordGenError(`LLM initialization failed: ${message}`);
+      }
+
+      return generator;
+    },
+  },
+  gpt2: {
+    async withWords(words?: string[]): Promise<Wordset> {
+      if (words === undefined) {
+        throw new WordGenError("GPT-2 funbox requires a word list");
+      }
+
+      const generator = new Gpt2WordGenerator(words, {
+        modelId: "Xenova/distilgpt2",
+        bufferMinWords: 200,
+        batchSize: 200,
+        temperature: 0.8,
+        topP: 0.9,
+        maxNewTokens: 600,
+      });
+
+      await generator.waitForReady();
+      return generator;
     },
   },
   gibberish: {

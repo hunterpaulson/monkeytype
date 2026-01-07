@@ -18,10 +18,12 @@
     "test": "vitest run",
     "test-coverage": "vitest run --coverage",
     "dev-test": "concurrently --kill-others \"vite dev\" \"vitest\"",
+    "debug-llm": "tsx src/ts/test/llm/debug-constrained-generation.ts",
     "tsc": "tsc",
     "docker": "docker compose -f docker/compose.dev.yml up"
   },
   "dependencies": {
+    "@huggingface/transformers": "^3.0.0",
     "@date-fns/utc": "1.2.0",
     "@monkeytype/contracts": "workspace:*",
     "@monkeytype/funbox": "workspace:*",

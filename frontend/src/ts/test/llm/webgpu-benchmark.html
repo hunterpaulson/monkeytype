@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebGPU Constrained Decoding Benchmark</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #0d1117;
+      color: #c9d1d9;
+    }
+    h1 { color: #58a6ff; }
+    .status {
+      padding: 16px;
+      border-radius: 8px;
+      margin: 16px 0;
+      background: #161b22;
+      border: 1px solid #30363d;
+    }
+    .status.error { border-color: #f85149; background: #2d1f1f; }
+    .status.success { border-color: #3fb950; background: #1f2d1f; }
+    button {
+      background: #238636;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 8px 4px;
+    }
+    button:hover { background: #2ea043; }
+    button:disabled { background: #484f58; cursor: not-allowed; }
+    pre {
+      background: #161b22;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      border: 1px solid #30363d;
+      font-size: 13px;
+    }
+    .metric {
+      display: inline-block;
+      background: #21262d;
+      padding: 8px 16px;
+      border-radius: 6px;
+      margin: 4px;
+    }
+    .metric-label { color: #8b949e; font-size: 12px; }
+    .metric-value { color: #58a6ff; font-size: 20px; font-weight: bold; }
+    #output { white-space: pre-wrap; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <h1>🚀 WebGPU Constrained Decoding Benchmark</h1>
+  
+  <div id="webgpu-status" class="status">Checking WebGPU...</div>
+  
+  <div>
+    <button id="btn-wasm" onclick="runBenchmark('wasm')">Run WASM (CPU)</button>
+    <button id="btn-webgpu" onclick="runBenchmark('webgpu')" disabled>Run WebGPU</button>
+  </div>
+
+  <div id="metrics" style="margin: 20px 0;"></div>
+  
+  <h3>Output</h3>
+  <pre id="output">Click a button to run the benchmark...</pre>
+
+  <script type="module">
+    import { 
+      pipeline, 
+      AutoTokenizer, 
+      AutoModelForCausalLM,
+      Tensor,
+      env 
+    } from 'https://cdn.jsdelivr.net/npm/@huggingface/transformers@3';
+
+    // Wordset (subset of english.json)
+    const WORDSET = [
+      "the", "be", "of", "and", "a", "to", "in", "he", "have", "it",
+      "that", "for", "they", "I", "with", "as", "not", "on", "she", "at",
+      "by", "this", "we", "you", "do", "but", "from", "or", "which", "one",
+      "would", "all", "will", "there", "say", "who", "make", "when", "can", "more",
+      "if", "no", "man", "out", "other", "so", "what", "time", "up", "go",
+      "about", "than", "into", "could", "state", "only", "new", "year", "some", "take",
+      "come", "these", "know", "see", "use", "get", "like", "then", "first", "any",
+      "work", "now", "may", "such", "give", "over", "think", "most", "even", "find",
+      "day", "also", "after", "way", "many", "must", "look", "before", "great", "back"
+    ];
+
+    const MODEL_ID = "Xenova/distilgpt2";
+    const TARGET_WORDS = 50;
+    const CONTEXT_WINDOW = 10;
+
+    let hasWebGPU = false;
+
+    // Check WebGPU
+    async function checkWebGPU() {
+      const statusEl = document.getElementById('webgpu-status');
+      const btnWebGPU = document.getElementById('btn-webgpu');
+      
+      // Log all the details for debugging
+      let debugInfo = [];
+      debugInfo.push(`navigator.gpu exists: ${!!navigator.gpu}`);
+      debugInfo.push(`window.isSecureContext: ${window.isSecureContext}`);
+      debugInfo.push(`location.protocol: ${location.protocol}`);
+      debugInfo.push(`location.hostname: ${location.hostname}`);
+      
+      try {
+        if (!navigator.gpu) {
+          statusEl.innerHTML = `❌ WebGPU API not found (navigator.gpu is undefined)<br><small>${debugInfo.join('<br>')}</small>`;
+          statusEl.className = 'status error';
+          return false;
+        }
+        
+        debugInfo.push('Requesting adapter...');
+        const adapter = await navigator.gpu.requestAdapter({
+          powerPreference: 'high-performance'
+        });
+        
+        debugInfo.push(`adapter: ${adapter ? 'obtained' : 'null'}`);
+        
+        if (adapter) {
+          // requestAdapterInfo might not be available in all Chrome versions
+          let gpuInfo = 'GPU Adapter Available';
+          try {
+            if (adapter.requestAdapterInfo) {
+              const info = await adapter.requestAdapterInfo();
+              gpuInfo = info.description || info.device || info.vendor || 'Unknown GPU';
+              debugInfo.push(`adapter.vendor: ${info.vendor}`);
+              debugInfo.push(`adapter.description: ${info.description}`);
+            } else {
+              debugInfo.push('adapter.requestAdapterInfo not available (older Chrome)');
+            }
+          } catch (infoErr) {
+            debugInfo.push(`Info error: ${infoErr.message}`);
+          }
+          
+          statusEl.innerHTML = `✅ WebGPU Available!<br>Device: ${gpuInfo}`;
+          statusEl.className = 'status success';
+          btnWebGPU.disabled = false;
+          hasWebGPU = true;
+          console.log('WebGPU debug info:', debugInfo);
+          return true;
+        } else {
+          statusEl.innerHTML = `❌ WebGPU adapter is null (no GPU found)<br><small>${debugInfo.join('<br>')}</small>`;
+          statusEl.className = 'status error';
+        }
+      } catch (e) {
+        console.error('WebGPU error:', e);
+        debugInfo.push(`Error: ${e.message}`);
+        statusEl.innerHTML = `❌ WebGPU error: ${e.message}<br><small>${debugInfo.join('<br>')}</small>`;
+        statusEl.className = 'status error';
+      }
+      
+      return false;
+    }
+
+    // Simple trie for constraints
+    class Trie {
+      constructor() { this.root = { children: {}, isEnd: false }; }
+      insert(word) {
+        let node = this.root;
+        for (const c of word) {
+          if (!node.children[c]) node.children[c] = { children: {}, isEnd: false };
+          node = node.children[c];
+        }
+        node.isEnd = true;
+      }
+      isPrefix(prefix) {
+        let node = this.root;
+        for (const c of prefix) {
+          if (!node.children[c]) return false;
+          node = node.children[c];
+        }
+        return true;
+      }
+      isWord(word) {
+        let node = this.root;
+        for (const c of word) {
+          if (!node.children[c]) return false;
+          node = node.children[c];
+        }
+        return node.isEnd;
+      }
+    }
+
+    // Build constraint trie
+    function buildTrie(words) {
+      const trie = new Trie();
+      for (const word of words) {
+        trie.insert(' ' + word);
+      }
+      return trie;
+    }
+
+    // Check if token is valid continuation
+    function isValidToken(trie, prefix, tokenStr) {
+      const combined = prefix + tokenStr;
+      
+      // Check if it's a valid prefix
+      if (trie.isPrefix(combined)) return { valid: true, nextPrefix: combined };
+      
+      // Try to parse as complete word(s) + prefix
+      for (let i = combined.length; i >= 1; i--) {
+        const word = combined.slice(0, i);
+        if (trie.isWord(word)) {
+          const remainder = combined.slice(i);
+          if (remainder === '') return { valid: true, nextPrefix: '' };
+          if (trie.isPrefix(remainder)) return { valid: true, nextPrefix: remainder };
+        }
+      }
+      
+      return { valid: false, nextPrefix: null };
+    }
+
+    function log(msg) {
+      const output = document.getElementById('output');
+      output.textContent += msg + '\n';
+      output.scrollTop = output.scrollHeight;
+    }
+
+    function setMetrics(metrics) {
+      const el = document.getElementById('metrics');
+      el.innerHTML = Object.entries(metrics).map(([label, value]) => `
+        <div class="metric">
+          <div class="metric-label">${label}</div>
+          <div class="metric-value">${value}</div>
+        </div>
+      `).join('');
+    }
+
+    window.runBenchmark = async function(device) {
+      const output = document.getElementById('output');
+      output.textContent = '';
+      setMetrics({});
+
+      log(`=== Running benchmark with ${device.toUpperCase()} ===\n`);
+
+      try {
+        // Load model
+        log('Loading tokenizer...');
+        const tokenizer = await AutoTokenizer.from_pretrained(MODEL_ID);
+        
+        log(`Loading model on ${device}...`);
+        const modelStart = performance.now();
+        const model = await AutoModelForCausalLM.from_pretrained(MODEL_ID, {
+          dtype: 'fp32',
+          device: device,
+        });
+        const modelTime = performance.now() - modelStart;
+        log(`Model loaded in ${modelTime.toFixed(0)}ms`);
+
+        const vocabSize = model.config.vocab_size || 50257;
+        log(`Vocab size: ${vocabSize}`);
+
+        // Build trie
+        log('Building constraint trie...');
+        const trie = buildTrie(WORDSET);
+
+        // Cache token strings
+        log('Caching token strings...');
+        const tokenStrings = new Map();
+        for (let i = 0; i < vocabSize; i++) {
+          try {
+            tokenStrings.set(i, tokenizer.decode([i], { skip_special_tokens: false }));
+          } catch {
+            tokenStrings.set(i, '');
+          }
+        }
+
+        // Generate tokens
+        log(`\nGenerating ${TARGET_WORDS} words with context window ${CONTEXT_WINDOW}...`);
+        
+        const startTokens = tokenizer.encode(' ', { add_special_tokens: false });
+        let generatedIds = startTokens.map(t => BigInt(t));
+        let currentPrefix = '';
+        
+        const tokenTimings = [];
+        const genStart = performance.now();
+
+        for (let step = 0; step < 200 && tokenTimings.length < TARGET_WORDS * 2; step++) {
+          const stepStart = performance.now();
+
+          // Context window
+          const inputIds = generatedIds.length > CONTEXT_WINDOW 
+            ? generatedIds.slice(-CONTEXT_WINDOW)
+            : generatedIds;
+
+          // Create tensors
+          const inputTensor = new Tensor('int64', inputIds, [1, inputIds.length]);
+          const attentionMask = new Tensor('int64', new BigInt64Array(inputIds.length).fill(1n), [1, inputIds.length]);
+          const positionIds = new Tensor('int64', inputIds.map((_, i) => BigInt(i)), [1, inputIds.length]);
+
+          // Forward pass
+          const fwdStart = performance.now();
+          const outputs = await model.forward({
+            input_ids: inputTensor,
+            attention_mask: attentionMask,
+            position_ids: positionIds,
+            use_cache: false,
+          });
+          const fwdTime = performance.now() - fwdStart;
+
+          // Get logits
+          const logits = outputs.logits.data;
+          const lastLogits = logits.slice(-vocabSize);
+
+          // Apply constraints and sample
+          const constStart = performance.now();
+          const validTokens = [];
+          for (let i = 0; i < vocabSize; i++) {
+            const tokenStr = tokenStrings.get(i) || '';
+            const result = isValidToken(trie, currentPrefix, tokenStr);
+            if (result.valid) {
+              validTokens.push({ id: i, logit: lastLogits[i], nextPrefix: result.nextPrefix });
+            }
+          }
+          const constTime = performance.now() - constStart;
+
+          if (validTokens.length === 0) {
+            log('No valid tokens! Stopping.');
+            break;
+          }
+
+          // Temperature sampling
+          const temp = 0.8;
+          const maxLogit = Math.max(...validTokens.map(t => t.logit));
+          const expLogits = validTokens.map(t => Math.exp((t.logit - maxLogit) / temp));
+          const sumExp = expLogits.reduce((a, b) => a + b, 0);
+          const probs = expLogits.map(e => e / sumExp);
+
+          let r = Math.random();
+          let selectedIdx = 0;
+          for (let i = 0; i < probs.length; i++) {
+            r -= probs[i];
+            if (r <= 0) { selectedIdx = i; break; }
+          }
+
+          const selected = validTokens[selectedIdx];
+          generatedIds.push(BigInt(selected.id));
+          currentPrefix = selected.nextPrefix;
+
+          const totalTime = performance.now() - stepStart;
+          tokenTimings.push({ fwdTime, constTime, totalTime });
+
+          if (step % 10 === 0) {
+            log(`Token ${step}: fwd=${fwdTime.toFixed(1)}ms, const=${constTime.toFixed(1)}ms, total=${totalTime.toFixed(1)}ms`);
+          }
+        }
+
+        const genTime = performance.now() - genStart;
+
+        // Decode result
+        const text = tokenizer.decode(generatedIds.map(id => Number(id)), { skip_special_tokens: true });
+        const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+
+        // Calculate stats
+        const avgFwd = tokenTimings.reduce((a, t) => a + t.fwdTime, 0) / tokenTimings.length;
+        const avgConst = tokenTimings.reduce((a, t) => a + t.constTime, 0) / tokenTimings.length;
+        const avgTotal = tokenTimings.reduce((a, t) => a + t.totalTime, 0) / tokenTimings.length;
+
+        log(`\n=== RESULTS ===`);
+        log(`Device: ${device.toUpperCase()}`);
+        log(`Tokens generated: ${tokenTimings.length}`);
+        log(`Words generated: ${words.length}`);
+        log(`Total generation time: ${genTime.toFixed(0)}ms`);
+        log(`Avg forward pass: ${avgFwd.toFixed(2)}ms`);
+        log(`Avg constraint check: ${avgConst.toFixed(2)}ms`);
+        log(`Avg total per token: ${avgTotal.toFixed(2)}ms`);
+        log(`Tokens/second: ${(1000 / avgTotal).toFixed(1)}`);
+        log(`\nGenerated text:\n${words.slice(0, 50).join(' ')}`);
+
+        setMetrics({
+          'Device': device.toUpperCase(),
+          'Tokens': tokenTimings.length,
+          'Words': words.length,
+          'ms/token': avgTotal.toFixed(1),
+          'tokens/sec': (1000 / avgTotal).toFixed(0),
+        });
+
+      } catch (err) {
+        log(`\nERROR: ${err.message}`);
+        console.error(err);
+      }
+    };
+
+    // Check WebGPU on load
+    checkWebGPU();
+  </script>
+</body>
+</html>
+
