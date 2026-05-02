@@ -20,6 +20,7 @@
     "lint-fast-fe": "turbo run lint-fast --filter @monkeytype/frontend",
     "lint-fast-pkg": "turbo run lint-fast --filter=\"./packages/*\"",
     "build": "turbo run build",
+    "build-typegpt": "pnpm --filter @monkeytype/schemas build && TYPEGPT_DEMO=true pnpm --filter @monkeytype/frontend build",
     "build-be": "turbo run build --filter @monkeytype/backend",
     "build-fe": "turbo run build --filter @monkeytype/frontend",
     "build-pkg": "turbo run build --filter=\"./packages/*\"",

@@ -1,6 +1,7 @@
 export type EnvConfig = {
   backendUrl: string;
   isDevelopment: boolean;
+  isTypeGptDemo: boolean;
   clientVersion: string;
   recaptchaSiteKey: string;
   quickLoginEmail: string | undefined;

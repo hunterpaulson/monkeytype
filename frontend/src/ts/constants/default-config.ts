@@ -1,4 +1,5 @@
 import { Config, CustomThemeColors } from "@monkeytype/schemas/configs";
+import { envConfig } from "virtual:env-config";
 
 const obj: Config = {
   theme: "serika_dark",
@@ -108,5 +109,22 @@ const obj: Config = {
 };
 
 export function getDefaultConfig(): Config {
-  return structuredClone(obj);
+  const config = structuredClone(obj);
+
+  if (envConfig.isTypeGptDemo) {
+    config.theme = "chatgpt";
+    config.themeDark = "chatgpt";
+    config.themeLight = "chatgpt_light";
+    config.mode = "words";
+    config.words = 25;
+    config.time = 30;
+    config.language = "english_10k";
+    config.funbox = ["llm"];
+    config.showKeyTips = false;
+    config.ads = "off";
+    config.resultSaving = false;
+    config.showOutOfFocusWarning = false;
+  }
+
+  return config;
 }

@@ -6,11 +6,13 @@ import { configLoadPromise } from "./config/lifecycle";
 import { authPromise } from "./firebase";
 import { animate } from "animejs";
 import { onDOMReady, qs } from "./utils/dom";
-import { isDevEnvironment } from "./utils/env";
+import { isDevEnvironment, isTypeGptDemo } from "./utils/env";
 
 onDOMReady(async () => {
   await configLoadPromise;
-  await authPromise;
+  if (!isTypeGptDemo()) {
+    await authPromise;
+  }
 
   //this line goes back to pretty much the beginning of the project and im pretty sure its here
   //to make sure the initial theme application doesnt animate the background color

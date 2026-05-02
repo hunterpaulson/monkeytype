@@ -24,6 +24,7 @@ export function envConfig(options: {
       if (id === resolvedVirtualModuleId) {
         const devConfig: EnvConfig = {
           isDevelopment: true,
+          isTypeGptDemo: options.env["TYPEGPT_DEMO"] === "true",
           backendUrl: fallback(
             options.env["BACKEND_URL"],
             "http://localhost:5005",
@@ -36,6 +37,7 @@ export function envConfig(options: {
 
         const prodConfig: EnvConfig = {
           isDevelopment: false,
+          isTypeGptDemo: options.env["TYPEGPT_DEMO"] === "true",
           backendUrl: fallback(
             options.env["BACKEND_URL"],
             "https://api.monkeytype.com",

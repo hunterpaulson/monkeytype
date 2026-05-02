@@ -6,7 +6,7 @@ import { RankAndCount } from "@monkeytype/schemas/users";
 import { roundTo2 } from "@monkeytype/util/numbers";
 import { animate, AnimationParams } from "animejs";
 import { ElementWithUtils } from "./dom";
-import { isDevEnvironment } from "./env";
+import { isDevEnvironment, isTypeGptDemo } from "./env";
 
 export function whorf(speed: number, wordlen: number): number {
   return Math.min(
@@ -495,7 +495,10 @@ export function updateTitle(title?: string): void {
 
   if (title === undefined || title === "") {
     document.title =
-      local + "Monkeytype | A minimalistic, customizable typing test";
+      local +
+      (isTypeGptDemo()
+        ? "typeGPT | Local GPT-2 typing tests"
+        : "Monkeytype | A minimalistic, customizable typing test");
   } else {
     document.title = local + title;
   }

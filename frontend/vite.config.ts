@@ -94,10 +94,12 @@ function getPlugins({
   isDevelopment,
   env,
   useSentry,
+  isTypeGptDemo,
 }: {
   isDevelopment: boolean;
   env: Record<string, string>;
   useSentry: boolean;
+  isTypeGptDemo: boolean;
 }): PluginOption[] {
   const clientVersion = getClientVersion(isDevelopment);
 
@@ -132,26 +134,30 @@ function getPlugins({
       injectRegister: null,
       registerType: "autoUpdate",
       manifest: {
-        short_name: "Monkeytype",
-        name: "Monkeytype",
+        short_name: isTypeGptDemo ? "typeGPT" : "Monkeytype",
+        name: isTypeGptDemo ? "typeGPT" : "Monkeytype",
         start_url: "/",
         icons: [
           {
-            src: "/images/icons/maskable_icon_x512.png",
+            src: isTypeGptDemo
+              ? "/images/favicon/favicon.svg"
+              : "/images/icons/maskable_icon_x512.png",
             sizes: "512x512",
-            type: "image/png",
+            type: isTypeGptDemo ? "image/svg+xml" : "image/png",
             purpose: "maskable",
           },
           {
-            src: "/images/icons/general_icon_x512.png",
+            src: isTypeGptDemo
+              ? "/images/favicon/favicon.svg"
+              : "/images/icons/general_icon_x512.png",
             sizes: "512x512",
-            type: "image/png",
+            type: isTypeGptDemo ? "image/svg+xml" : "image/png",
             purpose: "any",
           },
         ],
-        background_color: "#323437",
+        background_color: isTypeGptDemo ? "#202123" : "#323437",
         display: "standalone",
-        theme_color: "#323437",
+        theme_color: isTypeGptDemo ? "#202123" : "#323437",
       },
       manifestFilename: "manifest.json",
       workbox: {
@@ -335,9 +341,10 @@ export default defineConfig(({ mode }): UserConfig => {
   const env = loadEnv(mode, process.cwd(), "");
   const useSentry = env["SENTRY"] !== undefined;
   const isDevelopment = mode !== "production";
+  const isTypeGptDemo = env["TYPEGPT_DEMO"] === "true";
 
   if (!isDevelopment) {
-    if (env["RECAPTCHA_SITE_KEY"] === undefined) {
+    if (!isTypeGptDemo && env["RECAPTCHA_SITE_KEY"] === undefined) {
       throw new Error(`${mode}: RECAPTCHA_SITE_KEY is not defined`);
     }
     if (useSentry && env["SENTRY_AUTH_TOKEN"] === undefined) {
@@ -346,7 +353,12 @@ export default defineConfig(({ mode }): UserConfig => {
   }
 
   return {
-    plugins: getPlugins({ isDevelopment, useSentry: useSentry, env }),
+    plugins: getPlugins({
+      isDevelopment,
+      useSentry: useSentry,
+      env,
+      isTypeGptDemo,
+    }),
     build: getBuildOptions({ enableSourceMaps: useSentry }),
     css: getCssOptions({ isDevelopment }),
     server: {
@@ -360,7 +372,7 @@ export default defineConfig(({ mode }): UserConfig => {
       },
     },
     resolve: {
-      alias: isDevelopment
+      alias: isDevelopment || isTypeGptDemo
         ? []
         : [
             {

@@ -12,11 +12,13 @@ import { restartTestEvent } from "../../events/test";
 import { isAuthenticated } from "../../states/core";
 import { showModal } from "../../states/modals";
 import { areUnsortedArraysEqual } from "../../utils/arrays";
+import { isTypeGptDemo } from "../../utils/env";
 import { AnimatedModal } from "../common/AnimatedModal";
 import { Button } from "../common/Button";
 import { Separator } from "../common/Separator";
 
 const modes: Mode[] = ["time", "words", "quote", "zen", "custom"];
+const demoModes: Mode[] = ["time", "words"];
 const times = [15, 30, 60, 120];
 const wordCounts = [10, 25, 50, 100];
 
@@ -55,6 +57,12 @@ const isPunctuationDisabled = () =>
   getConfig.mode === "quote" || getConfig.mode === "zen";
 
 export function MobileTestConfigModal(): JSXElement {
+  const visibleModes = () => (isTypeGptDemo() ? demoModes : modes);
+
+  const handleThemeClick = (theme: "chatgpt" | "claude") => {
+    setConfig("theme", theme);
+  };
+
   const handleModeClick = (mode: Mode) => {
     if (mode === getConfig.mode) return;
     setConfig("mode", mode);
@@ -116,30 +124,48 @@ export function MobileTestConfigModal(): JSXElement {
   return (
     <AnimatedModal id="MobileTestConfig" modalClass="grid gap-4">
       <div class="grid gap-2">
-        <MCButton
-          text="punctuation"
-          active={getConfig.punctuation && !isPunctuationDisabled()}
-          disabled={isPunctuationDisabled()}
-          onClick={() => {
-            setConfig("punctuation", !getConfig.punctuation);
-            restartTestEvent.dispatch();
-          }}
-        />
-        <MCButton
-          text="numbers"
-          active={getConfig.numbers && !isPunctuationDisabled()}
-          disabled={isPunctuationDisabled()}
-          onClick={() => {
-            setConfig("numbers", !getConfig.numbers);
-            restartTestEvent.dispatch();
-          }}
-        />
+        <Show
+          when={isTypeGptDemo()}
+          fallback={
+            <>
+              <MCButton
+                text="punctuation"
+                active={getConfig.punctuation && !isPunctuationDisabled()}
+                disabled={isPunctuationDisabled()}
+                onClick={() => {
+                  setConfig("punctuation", !getConfig.punctuation);
+                  restartTestEvent.dispatch();
+                }}
+              />
+              <MCButton
+                text="numbers"
+                active={getConfig.numbers && !isPunctuationDisabled()}
+                disabled={isPunctuationDisabled()}
+                onClick={() => {
+                  setConfig("numbers", !getConfig.numbers);
+                  restartTestEvent.dispatch();
+                }}
+              />
+            </>
+          }
+        >
+          <MCButton
+            text="ChatGPT"
+            active={getConfig.theme === "chatgpt"}
+            onClick={() => handleThemeClick("chatgpt")}
+          />
+          <MCButton
+            text="Claude"
+            active={getConfig.theme === "claude"}
+            onClick={() => handleThemeClick("claude")}
+          />
+        </Show>
       </div>
 
       <Separator />
 
       <div class="grid gap-2">
-        <For each={modes}>
+        <For each={visibleModes()}>
           {(mode) => (
             <MCButton
               text={mode}

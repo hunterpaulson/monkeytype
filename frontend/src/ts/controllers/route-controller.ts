@@ -8,6 +8,7 @@ import * as TestState from "../test/test-state";
 import { showNoticeNotification } from "../states/notifications";
 import { navigationEvent, type NavigateOptions } from "../events/navigation";
 import { authEvent } from "../events/auth";
+import { isTypeGptDemo } from "../utils/env";
 
 //source: https://www.youtube.com/watch?v=OstALBk-jTc
 // https://www.youtube.com/watch?v=OstALBk-jTc
@@ -63,6 +64,10 @@ const routes: Route[] = [
   {
     path: "/leaderboards",
     load: async (_params, options) => {
+      if (isTypeGptDemo()) {
+        await navigate("/", options);
+        return;
+      }
       await PageController.change("leaderboards", options);
     },
   },
@@ -81,6 +86,10 @@ const routes: Route[] = [
   {
     path: "/login",
     load: async (_params, options) => {
+      if (isTypeGptDemo()) {
+        await navigate("/", options);
+        return;
+      }
       if (!isAuthAvailable()) {
         await navigate("/", options);
         return;
@@ -95,6 +104,10 @@ const routes: Route[] = [
   {
     path: "/account",
     load: async (_params, options) => {
+      if (isTypeGptDemo()) {
+        await navigate("/", options);
+        return;
+      }
       if (!isAuthAvailable()) {
         await navigate("/", options);
         return;
@@ -109,6 +122,10 @@ const routes: Route[] = [
   {
     path: "/account-settings",
     load: async (_params, options) => {
+      if (isTypeGptDemo()) {
+        await navigate("/", options);
+        return;
+      }
       if (!isAuthAvailable()) {
         await navigate("/", options);
         return;
@@ -123,12 +140,20 @@ const routes: Route[] = [
   {
     path: "/profile",
     load: async (_params, options) => {
+      if (isTypeGptDemo()) {
+        await navigate("/", options);
+        return;
+      }
       await PageController.change("profileSearch", options);
     },
   },
   {
     path: "/profile/:uidOrName",
     load: async (params, options) => {
+      if (isTypeGptDemo()) {
+        await navigate("/", options);
+        return;
+      }
       await PageController.change("profile", {
         ...options,
         force: true,
@@ -142,6 +167,10 @@ const routes: Route[] = [
   {
     path: "/friends",
     load: async (_params, options) => {
+      if (isTypeGptDemo()) {
+        await navigate("/", options);
+        return;
+      }
       if (!isAuthAvailable()) {
         await navigate("/", options);
         return;

@@ -14,6 +14,7 @@ import { areUnsortedArraysEqual } from "../../../utils/arrays";
 import { cn } from "../../../utils/cn";
 import { Anime, AnimeShow } from "../../common/anime";
 import { Button } from "../../common/Button";
+import { isTypeGptDemo } from "../../../utils/env";
 
 const variables = cn(
   "[--card-gap:0.25em] [--font-size:0.6em] [--horizontal-padding:0.4em] [--vertical-padding:0.7rem]",
@@ -83,6 +84,38 @@ function TCButton(props: {
 }
 
 function PuncAndNum(): JSXElement {
+  if (isTypeGptDemo()) {
+    const buttons = [
+      { theme: "chatgpt", text: "ChatGPT" },
+      { theme: "claude", text: "Claude" },
+    ] as const;
+
+    return (
+      <Anime
+        class="mr-(--card-gap) w-max place-self-end"
+        animation={{
+          opacity: 1,
+          duration: durationMs,
+        }}
+      >
+        <div class={cardClass}>
+          <For each={buttons}>
+            {({ theme, text }) => (
+              <TCButton
+                fa={{ icon: "fa-palette" }}
+                text={text}
+                active={getConfig.theme === theme}
+                onClick={() => {
+                  setConfig("theme", theme);
+                }}
+              />
+            )}
+          </For>
+        </div>
+      </Anime>
+    );
+  }
+
   const buttons = ["punctuation", "numbers"] as const;
 
   return (
@@ -119,11 +152,14 @@ function PuncAndNum(): JSXElement {
 }
 
 function Mode(): JSXElement {
-  const modeOptions = ["time", "words", "quote", "zen", "custom"] as const;
+  const modeOptions = () =>
+    isTypeGptDemo()
+      ? (["time", "words"] as const)
+      : (["time", "words", "quote", "zen", "custom"] as const);
 
   return (
     <div class={cn("z-2", cardClass)}>
-      <For each={modeOptions}>
+      <For each={modeOptions()}>
         {(modeOption) => (
           <TCButton
             fa={

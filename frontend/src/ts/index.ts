@@ -35,6 +35,7 @@ import { egVideoListener } from "./popups/video-ad-popup";
 import "./legacy-states/connection";
 import "./test/tts";
 import { addToGlobal } from "./utils/misc";
+import { isTypeGptDemo } from "./utils/env";
 import * as Focus from "./test/focus";
 import { fetchLatestVersion } from "./utils/version";
 import * as Sentry from "./sentry";
@@ -72,21 +73,27 @@ Object.defineProperty(window, "Math", {
 
 applyEngineSettings();
 void loadFromLocalStorage();
-void fetchLatestVersion().then((data) => {
-  if (data === null) return;
-  setVersion(data);
-});
+if (!isTypeGptDemo()) {
+  void fetchLatestVersion().then((data) => {
+    if (data === null) return;
+    setVersion(data);
+  });
+}
 
 Focus.set(true, true);
 const accepted = Cookies.getAcceptedCookies();
-if (accepted === null) {
+if (!isTypeGptDemo() && accepted === null) {
   CookiesModal.show();
 }
-void init(onAuthStateChanged).then(() => {
-  if (accepted !== null) {
-    Cookies.activateWhatsAccepted();
-  }
-});
+if (isTypeGptDemo()) {
+  void onAuthStateChanged(false, null);
+} else {
+  void init(onAuthStateChanged).then(() => {
+    if (accepted !== null) {
+      Cookies.activateWhatsAccepted();
+    }
+  });
+}
 
 addToGlobal({
   snapshot: DB.getSnapshot,

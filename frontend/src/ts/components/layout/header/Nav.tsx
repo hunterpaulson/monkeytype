@@ -26,6 +26,7 @@ import { getSnapshot } from "../../../states/snapshot";
 import { getFocus } from "../../../states/test";
 import { cn } from "../../../utils/cn";
 import { getLevelFromTotalXp } from "../../../utils/levels";
+import { isTypeGptDemo } from "../../../utils/env";
 import { AnimeConditional } from "../../common/anime";
 import { Button } from "../../common/Button";
 import { NotificationBubble } from "../../common/NotificationBubble";
@@ -34,6 +35,64 @@ import { AccountMenu } from "./AccountMenu";
 import { AccountXpBar } from "./AccountXpBar";
 
 export function Nav(): JSXElement {
+  if (isTypeGptDemo()) {
+    return (
+      <nav class={cn("z-5 flex w-full items-center gap-1 md:gap-2")}>
+        <Button
+          variant="text"
+          fa={{
+            icon: "fa-keyboard",
+            fixedWidth: true,
+          }}
+          router-link
+          href="/"
+          class={cn("aspect-square", {
+            "opacity-(--nav-focus-opacity)": getFocus(),
+          })}
+          dataset={{
+            "data-nav-item": "test",
+          }}
+          onClick={() => {
+            if (getActivePage() === "test") restartTestEvent.dispatch();
+          }}
+        />
+        <Button
+          variant="text"
+          fa={{
+            icon: "fa-info",
+            fixedWidth: true,
+          }}
+          class={cn("aspect-square", {
+            "opacity-(--nav-focus-opacity)": getFocus(),
+          })}
+          dataset={{
+            "data-nav-item": "about",
+          }}
+          href="/about"
+          router-link
+          onMouseEnter={() => {
+            prefetchAboutPage();
+          }}
+        />
+        <Button
+          variant="text"
+          fa={{
+            icon: "fa-cog",
+            fixedWidth: true,
+          }}
+          class={cn("aspect-square", {
+            "opacity-(--nav-focus-opacity)": getFocus(),
+          })}
+          href="/settings"
+          dataset={{
+            "data-nav-item": "settings",
+          }}
+          router-link
+        />
+      </nav>
+    );
+  }
+
   const [getAccountMenuOpen, setAccountMenuOpen] = createSignal(false);
   const isCoarse = () => window.matchMedia("(pointer: coarse)").matches;
   const [accountMenuRef, accountMenuEl] = useRefWithUtils<HTMLDivElement>();

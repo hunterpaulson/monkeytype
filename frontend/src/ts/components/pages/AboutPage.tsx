@@ -11,6 +11,7 @@ import {
 import { getActivePage } from "../../states/core";
 import { showModal } from "../../states/modals";
 import { getTheme } from "../../states/theme";
+import { isTypeGptDemo } from "../../utils/env";
 import { getNumberWithMagnitude } from "../../utils/numbers";
 import AsyncContent from "../common/AsyncContent";
 import { Button } from "../common/Button";
@@ -21,6 +22,38 @@ import { CommandlineHotkey } from "../hotkeys/CommandlineHotkey";
 import { QuickRestartHotkey } from "../hotkeys/QuickRestartHotkey";
 
 export function AboutPage(): JSXElement {
+  if (isTypeGptDemo()) {
+    return (
+      <div class="content-grid grid gap-8">
+        <section>
+          <H2 fa={{ icon: "fa-info-circle" }} text="about typeGPT" />
+          <p>
+            typeGPT is an unofficial Monkeytype fork that uses a small GPT-2
+            model running locally in the browser to generate typing-test word
+            sequences. The model weights are loaded into WebGPU; typed text and
+            generation stay on device.
+          </p>
+        </section>
+        <section>
+          <H3 fa={{ icon: "fa-code-branch" }} text="source and attribution" />
+          <p>
+            This demo was built by Hunter Paulson from an unmerged Monkeytype
+            draft PR. It preserves Monkeytype's GPLv3 license and links back to
+            the original project and PR in the footer.
+          </p>
+        </section>
+        <section>
+          <H3 fa={{ icon: "fa-microchip" }} text="requirements" />
+          <p>
+            LLM mode requires a browser with WebGPU support and can take a
+            moment to download model weights on first load. Chrome and Edge are
+            the safest browsers for the demo.
+          </p>
+        </section>
+      </div>
+    );
+  }
+
   const isOpen = () => getActivePage() === "about";
 
   const contributors = useQuery(() => ({

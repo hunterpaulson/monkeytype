@@ -7,6 +7,7 @@ import { reloadAfter } from "../utils/misc";
 import { isDevEnvironment } from "../utils/env";
 import * as ConfigSchemas from "@monkeytype/schemas/configs";
 import { roundTo1 } from "@monkeytype/util/numbers";
+import { isTypeGptDemo } from "../utils/env";
 import { capitalizeFirstLetter } from "../utils/strings";
 import { getDefaultConfig } from "../constants/default-config";
 import { FaObject } from "../types/font-awesome";
@@ -216,6 +217,9 @@ export const configMetadata: ConfigMetadataObject = {
     changeRequiresRestart: true,
     group: "test",
     overrideConfig: ({ currentConfig }) => {
+      if (isTypeGptDemo()) {
+        return {};
+      }
       if (currentConfig.mode !== "quote") {
         return {
           mode: "quote",

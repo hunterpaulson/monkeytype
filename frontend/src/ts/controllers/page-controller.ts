@@ -31,6 +31,7 @@ import {
 } from "../states/leaderboard-selection";
 import { configurationPromise as serverConfigurationPromise } from "../ape/server-configuration";
 import { showBlockingLoadingScreen } from "./loading-screen";
+import { isTypeGptDemo } from "../utils/env";
 
 type ChangeOptions = {
   force?: boolean;
@@ -92,7 +93,7 @@ function updateTitle(nextPage: { id: string; display?: string }): void {
   } else {
     const titleString =
       nextPage.display ?? Strings.capitalizeFirstLetterOfEachWord(nextPage.id);
-    Misc.updateTitle(`${titleString} | Monkeytype`);
+    Misc.updateTitle(`${titleString} | ${isTypeGptDemo() ? "typeGPT" : "Monkeytype"}`);
   }
 }
 
