@@ -372,12 +372,14 @@ export default defineConfig(({ mode }): UserConfig => {
       },
     },
     resolve: {
-      alias: isDevelopment || isTypeGptDemo
+      alias: isDevelopment
         ? []
         : [
             {
               find: /\/constants\/firebase-config$/,
-              replacement: "/constants/firebase-config-live",
+              replacement: isTypeGptDemo
+                ? "/constants/firebase-config-demo"
+                : "/constants/firebase-config-live",
             },
           ],
     },
