@@ -12,6 +12,7 @@ import Format from "../singletons/format";
 import { getActiveFunboxes, getActiveFunboxNames } from "../test/funbox/list";
 import { escapeHTML, getMode2 } from "../utils/misc";
 import { qsr } from "../utils/dom";
+import { isTypeGptDemo } from "../utils/env";
 import {
   wordsHaveNewline,
   wordsHaveTab,
@@ -55,7 +56,7 @@ export async function update(): Promise<void> {
     );
   }
 
-  if (!Config.resultSaving) {
+  if (!Config.resultSaving && !isTypeGptDemo()) {
     testModesNotice.appendHtml(
       `<div class="textButton" commands="resultSaving" style="color:var(--error-color);"><i class="fas fa-save"></i>saving disabled</div>`,
     );

@@ -19,7 +19,9 @@ onDOMReady(async () => {
   qs("body")?.setStyle({
     transition: "background .25s, transform .05s",
   });
-  MerchBanner.showIfNotClosedBefore();
+  if (!isTypeGptDemo()) {
+    MerchBanner.showIfNotClosedBefore();
+  }
 
   const app = document.querySelector("#app") as HTMLElement;
   app?.classList.remove("hidden");

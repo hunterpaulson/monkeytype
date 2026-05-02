@@ -115,7 +115,7 @@ export function getDefaultConfig(): Config {
     config.theme = "chatgpt";
     config.themeDark = "chatgpt";
     config.themeLight = "chatgpt_light";
-    config.mode = "words";
+    config.mode = "time";
     config.words = 25;
     config.time = 30;
     config.language = "english_10k";
