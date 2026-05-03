@@ -65,10 +65,6 @@ export class Wordset {
     return null;
   }
 
-  skipsWordRejection(): boolean {
-    return false;
-  }
-
   async dispose(): Promise<void> {
     return;
   }

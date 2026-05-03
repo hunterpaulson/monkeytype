@@ -31,6 +31,7 @@ export function envConfig(options: {
           ),
           clientVersion: options.clientVersion,
           recaptchaSiteKey: "6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI",
+          typeGptWeightsBaseUrl: options.env["TYPEGPT_WEIGHTS_BASE_URL"],
           quickLoginEmail: options.env["QUICK_LOGIN_EMAIL"],
           quickLoginPassword: options.env["QUICK_LOGIN_PASSWORD"],
         };
@@ -43,6 +44,7 @@ export function envConfig(options: {
             "https://api.monkeytype.com",
           ),
           recaptchaSiteKey: options.env["RECAPTCHA_SITE_KEY"] ?? "",
+          typeGptWeightsBaseUrl: options.env["TYPEGPT_WEIGHTS_BASE_URL"],
           quickLoginEmail: undefined,
           quickLoginPassword: undefined,
           clientVersion: options.clientVersion,

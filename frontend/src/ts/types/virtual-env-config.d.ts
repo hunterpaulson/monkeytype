@@ -4,6 +4,7 @@ export type EnvConfig = {
   isTypeGptDemo: boolean;
   clientVersion: string;
   recaptchaSiteKey: string;
+  typeGptWeightsBaseUrl: string | undefined;
   quickLoginEmail: string | undefined;
   quickLoginPassword: string | undefined;
 };

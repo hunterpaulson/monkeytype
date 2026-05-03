@@ -33,6 +33,7 @@ export type LlmTokenTiming = {
   contextLength: number;
   validTokenCount: number;
   bufferSize: number;
+  completedWordCount: number;
   forwardMs: number;
   constraintMs: number;
   sampleMs: number;

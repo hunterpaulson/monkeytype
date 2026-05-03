@@ -74,6 +74,15 @@ export class ConstraintEngine {
     return this.states.length;
   }
 
+  // If every forward path of word-chars from this state reaches the same
+  // terminal word, returns that word. Otherwise null. Precomputed on the
+  // underlying trie in O(trie states). Used by the word-level frequency
+  // penalty to penalize mid-word prefixes whose completion is already
+  // determined (e.g. "pi" when "pioneer" is the only pi-word in the wordset).
+  getUniqueReachableWord(stateId: ConstraintStateId): string | null {
+    return this.trie.getUniqueReachableWord(stateId);
+  }
+
   getStatePrefix(stateId: ConstraintStateId): string {
     return this.trie.getPrefix(stateId);
   }
@@ -98,6 +107,134 @@ export class ConstraintEngine {
     tokenId: TokenId,
   ): ConstraintStateId | null {
     return this.getState(stateId).transitions.get(tokenId) ?? null;
+  }
+
+  // Returns true if sampling this token would either (a) directly complete one
+  // of the banned words, or (b) land us in a non-terminal state from which every
+  // reachable completion is a banned word ("dead-end trap"). Used to mirror
+  // monkeytype's "don't repeat the last N words" rule inside constrained
+  // decoding, and to prevent walking into prefixes whose only completion is a
+  // recently emitted word (e.g. "pi" when "pioneer" is the only pi-word and
+  // pioneer is in the banned set).
+  tokenLeadsToBannedWord(
+    stateId: ConstraintStateId,
+    tokenId: TokenId,
+    bannedWords: ReadonlySet<string>,
+    memo: Map<ConstraintStateId, boolean>,
+  ): boolean {
+    if (bannedWords.size === 0) {
+      return false;
+    }
+
+    const nextStateId = this.getNextState(stateId, tokenId);
+
+    if (nextStateId === null) {
+      return false;
+    }
+
+    if (this.canTerminate(nextStateId)) {
+      return bannedWords.has(this.getStatePrefix(nextStateId));
+    }
+
+    return this.stateOnlyReachesBannedWords(nextStateId, bannedWords, memo);
+  }
+
+  // Legacy single-step check. Kept for tests that exercise the direct completion
+  // case explicitly. Prefer tokenLeadsToBannedWord in the generation loop.
+  tokenCompletesBannedWord(
+    stateId: ConstraintStateId,
+    tokenId: TokenId,
+    bannedWords: ReadonlySet<string>,
+  ): boolean {
+    if (bannedWords.size === 0) {
+      return false;
+    }
+
+    const nextStateId = this.getNextState(stateId, tokenId);
+
+    if (nextStateId === null) {
+      return false;
+    }
+
+    if (!this.canTerminate(nextStateId)) {
+      return false;
+    }
+
+    return bannedWords.has(this.getStatePrefix(nextStateId));
+  }
+
+  // Returns true iff, starting from stateId and following any sequence of valid
+  // token transitions, every reachable word-terminal has a prefix in bannedWords.
+  //
+  // Terminal states and the root state are never dead-ends: a terminal can
+  // space-transition back to root, and root can reach any word in the wordset,
+  // so (assuming the wordset has at least one unbanned word, which our caller
+  // guarantees) an unbanned terminal is always reachable from them.
+  //
+  // Dead-ends only exist at non-terminal, non-root states whose every forward
+  // token transition commits to a banned word. Results are memoized per call
+  // because the banned set changes across generation steps.
+  stateOnlyReachesBannedWords(
+    stateId: ConstraintStateId,
+    bannedWords: ReadonlySet<string>,
+    memo: Map<ConstraintStateId, boolean>,
+  ): boolean {
+    if (stateId === this.rootStateId) {
+      return false;
+    }
+
+    if (this.canTerminate(stateId)) {
+      return false;
+    }
+
+    const cached = memo.get(stateId);
+
+    if (cached !== undefined) {
+      return cached;
+    }
+
+    // tentatively mark dead-end to break any accidental cycle; will overwrite
+    // if we find an escape route.
+    memo.set(stateId, true);
+
+    const state = this.getState(stateId);
+
+    for (const tokenId of state.validTokenIds) {
+      const nextStateId = state.transitions.get(tokenId);
+
+      if (nextStateId === undefined) {
+        continue;
+      }
+
+      if (this.canTerminate(nextStateId)) {
+        const prefix = this.getStatePrefix(nextStateId);
+        if (!bannedWords.has(prefix)) {
+          memo.set(stateId, false);
+          return false;
+        }
+        // banned terminal reached, but a terminal can space-out to root, so
+        // from the CALLER's perspective the banned word gets emitted. we only
+        // treat this as "escape" if the caller wanted to pass through. for the
+        // dead-end check we care about the prefix we're emitting NOW, which is
+        // banned — so keep looking for an unbanned-completion escape.
+        continue;
+      }
+
+      if (nextStateId === this.rootStateId) {
+        // reached root via a transition that did NOT pass through a banned
+        // terminal-only path — safe.
+        memo.set(stateId, false);
+        return false;
+      }
+
+      if (!this.stateOnlyReachesBannedWords(nextStateId, bannedWords, memo)) {
+        memo.set(stateId, false);
+        return false;
+      }
+    }
+
+    memo.set(stateId, true);
+    return true;
   }
 
   getStats(): ConstraintEngineStats {

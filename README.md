@@ -61,6 +61,17 @@ npx wrangler deploy
 
 The Worker config is in `wrangler.toml`, and the static output is `frontend/dist`.
 
+To serve model weights from Cloudflare R2 instead of GitHub:
+
+```bash
+npx wrangler r2 bucket create typegpt-weights
+pnpm run upload-typegpt-weights
+pnpm run deploy-typegpt-weights
+TYPEGPT_DEMO=true TYPEGPT_WEIGHTS_BASE_URL=https://weights.typegpt.dev pnpm --filter @monkeytype/frontend... build
+```
+
+The weights Worker config is in `wrangler.weights.toml`. It expects an R2 bucket named `typegpt-weights` and serves only `weights/gpt2/*` with long-lived cache headers.
+
 ## Benchmarking
 
 The repo includes a browser benchmark for LLM generation quality and speed.

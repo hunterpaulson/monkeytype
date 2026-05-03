@@ -2,6 +2,7 @@ import {
   createWebGptRuntime as createVendoredWebGptRuntime,
   destroyWebGptRuntimeResources,
 } from "@monkeytype/webgpt-runtime";
+import { envConfig } from "virtual:env-config";
 import { decodeTokenizerVocabulary } from "./constraint-engine";
 import type { DecodedToken, RuntimeDevice } from "./types";
 
@@ -111,7 +112,9 @@ async function getOrCreateRuntimeState(): Promise<ManagedRuntimeState> {
 }
 
 async function createRuntime(): Promise<ManagedRuntimeState> {
-  const vendoredRuntime = await createVendoredWebGptRuntime();
+  const vendoredRuntime = await createVendoredWebGptRuntime({
+    weightsBaseUrl: envConfig.typeGptWeightsBaseUrl,
+  });
   const decodedTokens = decodeTokenizerVocabulary({
     getVocabSize() {
       return vendoredRuntime.tokenizer.getVocabSize();

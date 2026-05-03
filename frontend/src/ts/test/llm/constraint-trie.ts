@@ -17,6 +17,7 @@ export class ConstraintTrie {
       prefix: "",
     },
   ];
+  private uniqueReachableWordByStateId: Array<string | null> = [];
 
   constructor(words: string[]) {
     if (words.length === 0) {
@@ -32,6 +33,8 @@ export class ConstraintTrie {
 
       this.addWord(word);
     }
+
+    this.precomputeUniqueReachableWords();
   }
 
   getStateCount(): number {
@@ -44,6 +47,70 @@ export class ConstraintTrie {
 
   isWordState(stateId: ConstraintStateId): boolean {
     return this.getNode(stateId).isWord;
+  }
+
+  // If every forward path of word-chars from this state reaches the same
+  // terminal word, returns that word. Otherwise null. Precomputed at trie
+  // construction time with a single bottom-up DFS — O(trie states) total.
+  // Uses only the char-level trie structure, does not materialize the
+  // (much more expensive) token-level transitions.
+  getUniqueReachableWord(stateId: ConstraintStateId): string | null {
+    return this.uniqueReachableWordByStateId[stateId] ?? null;
+  }
+
+  private precomputeUniqueReachableWords(): void {
+    // iterative post-order DFS; computes each node's uniqueReachable
+    // after all its children have been computed.
+    this.uniqueReachableWordByStateId = new Array<string | null>(
+      this.nodes.length,
+    ).fill(null);
+
+    type Frame = { stateId: ConstraintStateId; childIndex: number };
+    const stack: Frame[] = [{ stateId: this.rootStateId, childIndex: 0 }];
+    // pre-build child order arrays to get deterministic iteration + O(1) indexing
+    const childOrder: ConstraintStateId[][] = this.nodes.map((node) =>
+      Array.from(node.children.values()),
+    );
+
+    while (stack.length > 0) {
+      const frame = stack[stack.length - 1] as Frame;
+      const node = this.getNode(frame.stateId);
+      const children = childOrder[frame.stateId] ?? [];
+
+      if (frame.childIndex < children.length) {
+        const childId = children[frame.childIndex] as ConstraintStateId;
+        frame.childIndex++;
+        stack.push({ stateId: childId, childIndex: 0 });
+        continue;
+      }
+
+      // All children processed; compute this node's value.
+      if (frame.stateId === this.rootStateId) {
+        // root is the natural branching point — any word reachable.
+        this.uniqueReachableWordByStateId[frame.stateId] = null;
+      } else {
+        let unique: string | null = node.isWord ? node.prefix : null;
+        let ambiguous = false;
+        for (const childId of children) {
+          const childWord = this.uniqueReachableWordByStateId[childId] ?? null;
+          if (childWord === null) {
+            ambiguous = true;
+            break;
+          }
+          if (unique === null) {
+            unique = childWord;
+          } else if (unique !== childWord) {
+            ambiguous = true;
+            break;
+          }
+        }
+        this.uniqueReachableWordByStateId[frame.stateId] = ambiguous
+          ? null
+          : unique;
+      }
+
+      stack.pop();
+    }
   }
 
   consumeChar(

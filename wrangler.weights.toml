@@ -1,0 +1,10 @@
+name = "typegpt-weights"
+main = "./workers/typegpt-weights/src/index.ts"
+compatibility_date = "2026-05-02"
+
+[[r2_buckets]]
+binding = "TYPEGPT_WEIGHTS"
+bucket_name = "typegpt-weights"
+
+[vars]
+ALLOWED_ORIGIN = "https://typegpt.dev"

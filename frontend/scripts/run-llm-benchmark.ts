@@ -22,6 +22,9 @@ type CliOptions = {
   languageFile: string | undefined;
   wordsToConsume: number | undefined;
   contextWindowSize: number | undefined;
+  minP: number | undefined;
+  frequencyPenalty: number | undefined;
+  matrix: boolean;
   clearRuntimeCache: boolean;
   headless: boolean;
 };
@@ -45,6 +48,8 @@ async function main(): Promise<void> {
     languageFile: cliOptions.languageFile,
     wordsToConsume: cliOptions.wordsToConsume,
     contextWindowSize: cliOptions.contextWindowSize,
+    minP: cliOptions.minP,
+    frequencyPenalty: cliOptions.frequencyPenalty,
     clearRuntimeCache: cliOptions.clearRuntimeCache,
   };
 
@@ -67,13 +72,18 @@ async function main(): Promise<void> {
     }
 
     const page = await browser.newPage();
+    page.on("console", (msg) => {
+      if (msg.type() === "warning" || msg.type() === "error") {
+        console.error(`[page ${msg.type()}] ${msg.text()}`);
+      }
+    });
     const benchmarkPageUrl = new URL("/404.html", normalizeBaseUrl(baseUrl));
 
     await page.goto(benchmarkPageUrl.toString(), {
       waitUntil: "domcontentloaded",
     });
 
-    const benchmarkResult = await page.evaluate(
+    const benchmarkResults = await page.evaluate(
       async ({ modulePath, options }) => {
         const benchmarkModule = (await import(modulePath)) as {
           runLlmBrowserBenchmark(
@@ -81,14 +91,49 @@ async function main(): Promise<void> {
           ): Promise<BrowserLlmBenchmarkResult>;
         };
 
-        return await benchmarkModule.runLlmBrowserBenchmark(options);
+        const benchmarkOptions = options.matrix
+          ? buildBenchmarkMatrix(options.benchmarkOptions)
+          : [options.benchmarkOptions];
+        const results: BrowserLlmBenchmarkResult[] = [];
+
+        for (const benchmarkOption of benchmarkOptions) {
+          results.push(
+            await benchmarkModule.runLlmBrowserBenchmark(benchmarkOption),
+          );
+        }
+
+        return results;
+
+        function buildBenchmarkMatrix(
+          baseOptions: BrowserLlmBenchmarkOptions,
+        ): BrowserLlmBenchmarkOptions[] {
+          const contextWindowSizes = [5, 16, 32];
+          const minPs = [0.05, 0.1];
+          const frequencyPenalties = [1, 2];
+
+          return contextWindowSizes.flatMap((contextWindowSize) =>
+            minPs.flatMap((minP) =>
+              frequencyPenalties.map((frequencyPenalty) => ({
+                ...baseOptions,
+                contextWindowSize,
+                minP,
+                frequencyPenalty,
+                clearRuntimeCache: false,
+              })),
+            ),
+          );
+        }
       },
       {
         modulePath: BROWSER_BENCHMARK_MODULE_PATH,
-        options: benchmarkOptions,
+        options: {
+          benchmarkOptions,
+          matrix: cliOptions.matrix,
+        },
       },
     );
     const userAgent = await page.evaluate(() => navigator.userAgent);
+    const summary = benchmarkResults.map(summarizeBenchmarkResult);
 
     console.log(
       JSON.stringify(
@@ -101,7 +146,9 @@ async function main(): Promise<void> {
           },
           pageUrl: benchmarkPageUrl.toString(),
           options: benchmarkOptions,
-          result: benchmarkResult,
+          matrix: cliOptions.matrix,
+          summary,
+          results: benchmarkResults,
         },
         null,
         2,
@@ -126,6 +173,9 @@ function parseCliOptions(args: string[]): CliOptions {
     languageFile: undefined,
     wordsToConsume: undefined,
     contextWindowSize: undefined,
+    minP: undefined,
+    frequencyPenalty: undefined,
+    matrix: false,
     clearRuntimeCache: false,
     headless: false,
   };
@@ -157,6 +207,15 @@ function parseCliOptions(args: string[]): CliOptions {
       case "--window":
         options.contextWindowSize = requireNumberArg(args, ++index, arg);
         break;
+      case "--min-p":
+        options.minP = requireNumberArg(args, ++index, arg);
+        break;
+      case "--frequency-penalty":
+        options.frequencyPenalty = requireNumberArg(args, ++index, arg);
+        break;
+      case "--matrix":
+        options.matrix = true;
+        break;
       case "--clear-cache":
         options.clearRuntimeCache = true;
         break;
@@ -169,6 +228,42 @@ function parseCliOptions(args: string[]): CliOptions {
   }
 
   return options;
+}
+
+function summarizeBenchmarkResult(result: BrowserLlmBenchmarkResult): object {
+  return {
+    contextWindowSize: result.contextWindowSize,
+    minP: result.samplingParams.minP,
+    frequencyPenalty: result.samplingParams.frequencyPenalty,
+    wordsToConsume: result.wordsToConsume,
+    wordsPerSecond: round(result.wordsPerSecond, 2),
+    generatedTokensPerSecond: round(
+      result.qualityMetrics.generatedTokensPerSecond,
+      2,
+    ),
+    generatedWordsPerMinute: round(
+      result.qualityMetrics.generatedWordsPerMinute,
+      0,
+    ),
+    averageTokensPerCompletedWord: round(
+      result.qualityMetrics.averageTokensPerCompletedWord,
+      2,
+    ),
+    immediateRepeatRate: round(result.qualityMetrics.immediateRepeatRate, 3),
+    repeatWithinLast10Rate: round(
+      result.qualityMetrics.repeatWithinLast10Rate,
+      3,
+    ),
+    uniqueWordRate: round(result.qualityMetrics.uniqueWordRate, 3),
+    averageWordLength: round(result.qualityMetrics.averageWordLength, 2),
+    topWords: result.qualityMetrics.topWords.slice(0, 5),
+    sampleText: result.sampleText,
+  };
+}
+
+function round(value: number, decimals: number): number {
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
 }
 
 function requireStringArg(args: string[], index: number, flag: string): string {
@@ -351,6 +446,10 @@ Options:
   --language <file>   Language file to benchmark (default: english_5k.json)
   --words <count>     Number of generated words to consume (default: 100)
   --window <count>    Context window size override (default: 5)
+  --min-p <number>    Min-p sampling value (default: 0.1)
+  --frequency-penalty <number>
+                      Word frequency penalty (default: 2)
+  --matrix            Run the default tuning matrix
   --clear-cache       Clear the shared WebGPT runtime before benchmarking
   --headless          Run Chromium without opening a visible window
   -h, --help          Show this help message

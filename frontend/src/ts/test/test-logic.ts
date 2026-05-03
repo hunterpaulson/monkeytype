@@ -626,19 +626,9 @@ async function init(): Promise<boolean> {
             style: "bar",
             keyframes: [
               {
-                percentage: 30,
-                durationMs: 800,
-                text: "Downloading model weights...",
-              },
-              {
-                percentage: 70,
-                durationMs: 1500,
-                text: "Initializing WebGPU runtime...",
-              },
-              {
                 percentage: 90,
-                durationMs: 400,
-                text: "Generating first words...",
+                durationMs: 4000,
+                text: "Downloading GPT-2 weights",
               },
             ],
           },

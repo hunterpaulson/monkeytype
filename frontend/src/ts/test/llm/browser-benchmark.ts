@@ -1,11 +1,19 @@
 import type { LlmTokenTiming, RuntimeDevice } from "./types";
 import { clearWebGptRuntimeCache, loadWebGptRuntime } from "./webgpt-runtime";
-import { WebGptWordGenerator } from "./webgpt-word-generator";
+import {
+  WebGptWordGenerator,
+  type SamplingParams,
+} from "./webgpt-word-generator";
 
 export type BrowserLlmBenchmarkOptions = {
   languageFile?: string;
   wordsToConsume?: number;
   contextWindowSize?: number;
+  minP?: number;
+  frequencyPenalty?: number;
+  frequencyPenaltyWindow?: number;
+  topK?: number;
+  temperature?: number;
   clearRuntimeCache?: boolean;
 };
 
@@ -31,6 +39,7 @@ export type BrowserLlmBenchmarkResult = {
   languageFile: string;
   wordsToConsume: number;
   contextWindowSize: number;
+  samplingParams: SamplingParams;
   runtimeDevice: RuntimeDevice | null;
   runtimeLoadMs: number;
   generatorReadyMs: number;
@@ -50,10 +59,31 @@ export type BrowserLlmBenchmarkResult = {
     stateCount: number;
     materializedStateCount: number;
   };
+  qualityMetrics: LlmBenchmarkQualityMetrics;
   memoryBefore: MemorySnapshot;
   memoryAfter: MemorySnapshot;
   resources: ResourceSnapshot[];
   words: string[];
+  sampleText: string;
+};
+
+export type LlmBenchmarkQualityMetrics = {
+  immediateRepeatCount: number;
+  immediateRepeatRate: number;
+  repeatWithinLast10Count: number;
+  repeatWithinLast10Rate: number;
+  uniqueWordCount: number;
+  uniqueWordRate: number;
+  averageWordLength: number;
+  shortWordRate: number;
+  mediumWordRate: number;
+  longWordRate: number;
+  averageTokensPerCompletedWord: number;
+  completedWordsPerToken: number;
+  generatedWordsPerMinute: number;
+  generatedTokensPerSecond: number;
+  topWords: Array<{ word: string; count: number }>;
+  topBigrams: Array<{ bigram: string; count: number }>;
 };
 
 export async function runLlmBrowserBenchmark(
@@ -62,6 +92,13 @@ export async function runLlmBrowserBenchmark(
   const languageFile = options.languageFile ?? "english_5k.json";
   const wordsToConsume = options.wordsToConsume ?? 100;
   const contextWindowSize = options.contextWindowSize ?? 5;
+  const samplingParams: SamplingParams = {
+    temperature: options.temperature ?? 1,
+    topK: options.topK ?? 0,
+    minP: options.minP ?? 0.1,
+    frequencyPenalty: options.frequencyPenalty ?? 2,
+    frequencyPenaltyWindow: options.frequencyPenaltyWindow ?? 100,
+  };
 
   if (options.clearRuntimeCache) {
     clearWebGptRuntimeCache();
@@ -79,6 +116,7 @@ export async function runLlmBrowserBenchmark(
   const generatorReadyStart = performance.now();
   const generator = new WebGptWordGenerator(words, {
     contextWindowSize,
+    samplingParams,
     onTokenTiming(timing) {
       tokenTimings.push(timing);
     },
@@ -118,6 +156,7 @@ export async function runLlmBrowserBenchmark(
     languageFile,
     wordsToConsume,
     contextWindowSize,
+    samplingParams,
     runtimeDevice: generator.getRuntimeDevice() ?? loadedRuntime.device,
     runtimeLoadMs,
     generatorReadyMs,
@@ -145,14 +184,127 @@ export async function runLlmBrowserBenchmark(
       stateCount: generator.getStateCount(),
       materializedStateCount: generator.getMaterializedStateCount(),
     },
+    qualityMetrics: calculateQualityMetrics(consumedWords, tokenTimings),
     memoryBefore,
     memoryAfter,
     resources,
     words: consumedWords,
+    sampleText: consumedWords.join(" "),
   };
 
   await generator.dispose();
   return result;
+}
+
+function calculateQualityMetrics(
+  words: string[],
+  tokenTimings: LlmTokenTiming[],
+): LlmBenchmarkQualityMetrics {
+  let immediateRepeatCount = 0;
+  let repeatWithinLast10Count = 0;
+  const wordCounts = new Map<string, number>();
+  const bigramCounts = new Map<string, number>();
+
+  for (let index = 0; index < words.length; index++) {
+    const word = normalizeWord(words[index] ?? "");
+    wordCounts.set(word, (wordCounts.get(word) ?? 0) + 1);
+
+    if (index > 0) {
+      const previous = normalizeWord(words[index - 1] ?? "");
+      if (word === previous) {
+        immediateRepeatCount++;
+      }
+      const bigram = `${previous} ${word}`;
+      bigramCounts.set(bigram, (bigramCounts.get(bigram) ?? 0) + 1);
+    }
+
+    const recentWindowStart = Math.max(0, index - 10);
+    for (
+      let recentIndex = recentWindowStart;
+      recentIndex < index;
+      recentIndex++
+    ) {
+      if (normalizeWord(words[recentIndex] ?? "") === word) {
+        repeatWithinLast10Count++;
+        break;
+      }
+    }
+  }
+
+  const generatedTokenCount = tokenTimings.length;
+  const completedWordCount = tokenTimings.reduce(
+    (sum, timing) => sum + timing.completedWordCount,
+    0,
+  );
+  const totalGenerationMs = tokenTimings.reduce(
+    (sum, timing) => sum + timing.totalMs,
+    0,
+  );
+
+  return {
+    immediateRepeatCount,
+    immediateRepeatRate: rate(
+      immediateRepeatCount,
+      Math.max(words.length - 1, 0),
+    ),
+    repeatWithinLast10Count,
+    repeatWithinLast10Rate: rate(repeatWithinLast10Count, words.length),
+    uniqueWordCount: wordCounts.size,
+    uniqueWordRate: rate(wordCounts.size, words.length),
+    averageWordLength: average(words.map((word) => word.length)),
+    shortWordRate: rate(
+      words.filter((word) => word.length <= 3).length,
+      words.length,
+    ),
+    mediumWordRate: rate(
+      words.filter((word) => word.length >= 4 && word.length <= 7).length,
+      words.length,
+    ),
+    longWordRate: rate(
+      words.filter((word) => word.length >= 8).length,
+      words.length,
+    ),
+    averageTokensPerCompletedWord: rate(
+      generatedTokenCount,
+      completedWordCount,
+    ),
+    completedWordsPerToken: rate(completedWordCount, generatedTokenCount),
+    generatedWordsPerMinute:
+      totalGenerationMs > 0
+        ? (completedWordCount / totalGenerationMs) * 60000
+        : 0,
+    generatedTokensPerSecond:
+      totalGenerationMs > 0
+        ? (generatedTokenCount / totalGenerationMs) * 1000
+        : 0,
+    topWords: topEntries(wordCounts, 10).map(([word, count]) => ({
+      word,
+      count,
+    })),
+    topBigrams: topEntries(bigramCounts, 10).map(([bigram, count]) => ({
+      bigram,
+      count,
+    })),
+  };
+}
+
+function normalizeWord(word: string): string {
+  return word.toLowerCase();
+}
+
+function topEntries(
+  map: Map<string, number>,
+  limit: number,
+): Array<[string, number]> {
+  return Array.from(map.entries())
+    .sort(
+      (left, right) => right[1] - left[1] || left[0].localeCompare(right[0]),
+    )
+    .slice(0, limit);
+}
+
+function rate(numerator: number, denominator: number): number {
+  return denominator > 0 ? numerator / denominator : 0;
 }
 
 async function loadLanguageWords(languageFile: string): Promise<string[]> {

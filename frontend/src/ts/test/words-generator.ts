@@ -873,7 +873,7 @@ export async function getNextWord(
       }
     } else if (isCurrentlyUsingFunboxSection) {
       randomWord = funboxSection.join(" ");
-    } else if (!wordset.skipsWordRejection()) {
+    } else {
       let regenarationCount = 0; //infinite loop emergency stop button
       let firstAfterSplit = (randomWord.split(" ")[0] as string).toLowerCase();
       let firstAfterSplitLazy = applyLazyModeToWord(

@@ -29,6 +29,10 @@ import { FunboxName, KeymapLayout, Layout } from "@monkeytype/schemas/configs";
 import { Language, LanguageObject } from "@monkeytype/schemas/languages";
 import { qs } from "../../utils/dom";
 import { WebGptWordGenerator } from "../llm/webgpt-word-generator";
+import {
+  recordLlmTokenTiming,
+  resetLlmInferenceStats,
+} from "../llm/inference-stats";
 import { clearWebGptRuntimeCache } from "../llm/webgpt-runtime";
 
 export type FunboxFunctions = {
@@ -515,12 +519,16 @@ const list: Partial<Record<FunboxName, FunboxFunctions>> = {
         return true;
       });
 
+      resetLlmInferenceStats();
+
       const generator = new WebGptWordGenerator(filteredWords, {
         contextWindowSize: 5,
         initialWords: 1,
         bufferMinWords: 10,
         bufferTargetWords: 100,
+        streamingBufferTargetWords: 60,
         maxTokensPerFill: 128,
+        onTokenTiming: recordLlmTokenTiming,
       });
 
       try {
