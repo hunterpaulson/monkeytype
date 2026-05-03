@@ -23,7 +23,7 @@ export function Logo(): JSXElement {
     >
       <div
         class={cn(
-          "grid h-full aspect-square place-content-center rounded-sm bg-main px-[0.12em] text-[0.95em] font-bold leading-none text-bg transition-colors",
+          "grid aspect-square h-full place-content-center rounded-sm bg-main px-[0.12em] text-[0.95em] leading-none font-bold text-bg transition-colors",
           {
             "bg-sub": getFocus(),
           },
@@ -35,7 +35,7 @@ export function Logo(): JSXElement {
       <div class="hidden h-6 place-content-center text-[2rem] leading-0 sm:grid">
         <div
           class={cn(
-            "-mt-[1.65em] hidden pl-[0.5em] text-[0.315em] leading-0 text-sub transition-colors duration-125 lg:block",
+            "-mt-[1.65em] hidden pl-[1.1em] text-[0.315em] leading-0 text-sub transition-colors duration-125 lg:block",
             {
               "text-transparent": getFocus(),
             },

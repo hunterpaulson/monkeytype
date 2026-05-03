@@ -117,7 +117,7 @@ export function getDefaultConfig(): Config {
     config.themeLight = "chatgpt_light";
     config.mode = "time";
     config.words = 25;
-    config.time = 30;
+    config.time = 15;
     config.language = "english_10k";
     config.funbox = ["llm"];
     config.showKeyTips = false;

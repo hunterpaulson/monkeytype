@@ -497,7 +497,7 @@ export function updateTitle(title?: string): void {
     document.title =
       local +
       (isTypeGptDemo()
-        ? "typeGPT | Local GPT-2 typing tests"
+        ? "typeGPT | Can you type faster than GPT-2?"
         : "Monkeytype | A minimalistic, customizable typing test");
   } else {
     document.title = local + title;

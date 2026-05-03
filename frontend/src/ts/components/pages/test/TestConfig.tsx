@@ -12,9 +12,9 @@ import { getResultVisible, getFocus } from "../../../states/test";
 import { FaObject } from "../../../types/font-awesome";
 import { areUnsortedArraysEqual } from "../../../utils/arrays";
 import { cn } from "../../../utils/cn";
+import { isTypeGptDemo } from "../../../utils/env";
 import { Anime, AnimeShow } from "../../common/anime";
 import { Button } from "../../common/Button";
-import { isTypeGptDemo } from "../../../utils/env";
 
 const variables = cn(
   "[--card-gap:0.25em] [--font-size:0.6em] [--horizontal-padding:0.4em] [--vertical-padding:0.7rem]",
@@ -84,38 +84,46 @@ function TCButton(props: {
 }
 
 function PuncAndNum(): JSXElement {
-  if (isTypeGptDemo()) {
-    const buttons = [
-      { theme: "chatgpt", text: "ChatGPT" },
-      { theme: "claude", text: "Claude" },
-    ] as const;
+  return (
+    <Show when={isTypeGptDemo()} fallback={<PunctuationAndNumbers />}>
+      <DemoThemeButtons />
+    </Show>
+  );
+}
 
-    return (
-      <Anime
-        class="mr-(--card-gap) w-max place-self-end"
-        animation={{
-          opacity: 1,
-          duration: durationMs,
-        }}
-      >
-        <div class={cardClass}>
-          <For each={buttons}>
-            {({ theme, text }) => (
-              <TCButton
-                fa={{ icon: "fa-palette" }}
-                text={text}
-                active={getConfig.theme === theme}
-                onClick={() => {
-                  setConfig("theme", theme);
-                }}
-              />
-            )}
-          </For>
-        </div>
-      </Anime>
-    );
-  }
+function DemoThemeButtons(): JSXElement {
+  const buttons = [
+    { theme: "chatgpt", text: "ChatGPT" },
+    { theme: "claude", text: "Claude" },
+  ] as const;
 
+  return (
+    <Anime
+      class="mr-(--card-gap) w-max place-self-end"
+      animation={{
+        opacity: 1,
+        duration: durationMs,
+      }}
+    >
+      <div class={cardClass}>
+        <For each={buttons}>
+          {({ theme, text }) => (
+            <TCButton
+              fa={{ icon: "fa-palette" }}
+              text={text}
+              active={getConfig.theme === theme}
+              onClick={() => {
+                setConfig("theme", theme);
+              }}
+            />
+          )}
+        </For>
+      </div>
+    </Anime>
+  );
+}
+
+function PunctuationAndNumbers(): JSXElement {
   const buttons = ["punctuation", "numbers"] as const;
 
   return (

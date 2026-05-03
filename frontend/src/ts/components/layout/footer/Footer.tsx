@@ -1,4 +1,4 @@
-import { JSXElement } from "solid-js";
+import { JSXElement, Show } from "solid-js";
 
 import { getIsScreenshotting } from "../../../states/core";
 import { showModal } from "../../../states/modals";
@@ -11,57 +11,65 @@ import { ThemeIndicator } from "./ThemeIndicator";
 import { VersionButton } from "./VersionButton";
 
 export function Footer(): JSXElement {
-  if (isTypeGptDemo()) {
-    return (
-      <footer
-        class={cn("relative text-xs text-sub", {
-          "opacity-0": getIsScreenshotting(),
-        })}
-      >
-        <div
-          class="-m-2 flex justify-between gap-8 transition-opacity"
-          classList={{
-            "opacity-0": getFocus(),
-          }}
-        >
-          <div class="grid grid-cols-1 justify-items-start xs:grid-cols-2 sm:grid-cols-4 lg:flex">
-            <Button
-              variant="text"
-              text="source"
-              fa={{
-                icon: "fa-code",
-                fixedWidth: true,
-              }}
-              href="https://github.com/hunterpaulson/monkeytype/tree/demo/typegpt"
-            />
-            <Button
-              variant="text"
-              text="original pr"
-              fa={{
-                icon: "fa-code-branch",
-                fixedWidth: true,
-              }}
-              href="https://github.com/monkeytypegame/monkeytype/pull/7771"
-            />
-            <Button
-              variant="text"
-              text="monkeytype"
-              fa={{
-                icon: "fa-keyboard",
-                fixedWidth: true,
-              }}
-              href="https://monkeytype.com"
-            />
-          </div>
-          <div class="flex flex-col items-end text-right lg:flex-row">
-            <ThemeIndicator />
-            <VersionButton />
-          </div>
-        </div>
-      </footer>
-    );
-  }
+  return (
+    <Show when={isTypeGptDemo()} fallback={<FullFooter />}>
+      <DemoFooter />
+    </Show>
+  );
+}
 
+function DemoFooter(): JSXElement {
+  return (
+    <footer
+      class={cn("relative text-xs text-sub", {
+        "opacity-0": getIsScreenshotting(),
+      })}
+    >
+      <div
+        class="-m-2 flex justify-between gap-8 transition-opacity"
+        classList={{
+          "opacity-0": getFocus(),
+        }}
+      >
+        <div class="grid grid-cols-1 justify-items-start xs:grid-cols-2 sm:grid-cols-4 lg:flex">
+          <Button
+            variant="text"
+            text="source"
+            fa={{
+              icon: "fa-code",
+              fixedWidth: true,
+            }}
+            href="https://github.com/hunterpaulson/monkeytype/tree/demo/typegpt"
+          />
+          <Button
+            variant="text"
+            text="original pr"
+            fa={{
+              icon: "fa-code-branch",
+              fixedWidth: true,
+            }}
+            href="https://github.com/monkeytypegame/monkeytype/pull/7771"
+          />
+          <Button
+            variant="text"
+            text="monkeytype"
+            fa={{
+              icon: "fa-keyboard",
+              fixedWidth: true,
+            }}
+            href="https://monkeytype.com"
+          />
+        </div>
+        <div class="flex flex-col items-end text-right lg:flex-row">
+          <ThemeIndicator />
+          <VersionButton />
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function FullFooter(): JSXElement {
   return (
     <footer
       class={cn("relative text-xs text-sub", {

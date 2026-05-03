@@ -14,6 +14,10 @@ import { escapeHTML, getMode2 } from "../utils/misc";
 import { qsr } from "../utils/dom";
 import { isTypeGptDemo } from "../utils/env";
 import {
+  getLlmInferenceStatsSnapshot,
+  subscribeLlmInferenceStats,
+} from "../test/llm/inference-stats";
+import {
   wordsHaveNewline,
   wordsHaveTab,
   getLoadedChallenge,
@@ -262,8 +266,14 @@ export async function update(): Promise<void> {
   if (Config.funbox.length > 0) {
     testModesNotice.appendHtml(
       `<button class="textButton" commands="funbox"><i class="fas fa-gamepad"></i>${Config.funbox
-        .map((it) => it.replace(/_/g, " "))
+        .map(formatFunboxDisplayName)
         .join(", ")}</button>`,
+    );
+  }
+
+  if (isTypeGptDemo() && Config.funbox.includes("llm")) {
+    testModesNotice.appendHtml(
+      `<div class="textButton noInteraction"><i class="fas fa-microchip"></i>${formatLlmInferenceStats()}</div>`,
     );
   }
 
@@ -318,4 +328,43 @@ export async function update(): Promise<void> {
       );
     }
   } catch {}
+}
+
+let llmStatsUpdateQueued = false;
+
+subscribeLlmInferenceStats(() => {
+  if (llmStatsUpdateQueued) return;
+
+  llmStatsUpdateQueued = true;
+  const queue =
+    typeof requestAnimationFrame === "function"
+      ? requestAnimationFrame
+      : (callback: FrameRequestCallback): number => {
+          callback(performance.now());
+          return 0;
+        };
+  queue(() => {
+    llmStatsUpdateQueued = false;
+    void update();
+  });
+});
+
+function formatLlmInferenceStats(): string {
+  const stats = getLlmInferenceStatsSnapshot();
+
+  if (stats.tokensPerSecond === null || stats.wordsPerMinute === null) {
+    return "warming up";
+  }
+
+  return `${stats.tokensPerSecond.toFixed(1)} tok/s = ${Math.round(
+    stats.wordsPerMinute,
+  )} wpm`;
+}
+
+function formatFunboxDisplayName(funbox: string): string {
+  if (isTypeGptDemo() && funbox === "llm") {
+    return "GPT-2";
+  }
+
+  return funbox.replace(/_/g, " ");
 }
