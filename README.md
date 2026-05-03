@@ -83,4 +83,6 @@ The benchmark reports throughput, generated words per minute, tokens per complet
 
 typeGPT is based on [Monkeytype](https://monkeytype.com), an open-source typing test by the Monkeytype contributors. This fork preserves Monkeytype's GPLv3 license and links back to the original project.
 
+The browser GPT-2 runtime vendors and adapts code from [0hq/WebGPT](https://github.com/0hq/WebGPT), with the WebGPT license included in `packages/webgpt-runtime/LICENSE.webgpt`.
+
 This project is not affiliated with or endorsed by Monkeytype, OpenAI, or Anthropic.
