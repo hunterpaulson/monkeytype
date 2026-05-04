@@ -21,7 +21,7 @@
     "lint-fast-pkg": "turbo run lint-fast --filter=\"./packages/*\"",
     "build": "turbo run build",
     "build-typegpt": "TYPEGPT_DEMO=true pnpm --filter @monkeytype/frontend... build",
-    "deploy-typegpt-weights": "wrangler deploy --config wrangler.weights.toml",
+    "deploy-typegpt-weights": "npx wrangler deploy --config wrangler.weights.toml",
     "upload-typegpt-weights": "node scripts/upload-typegpt-weights.mjs",
     "build-be": "turbo run build --filter @monkeytype/backend",
     "build-fe": "turbo run build --filter @monkeytype/frontend",

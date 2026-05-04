@@ -23,7 +23,16 @@ for (const key of weightKeys) {
   console.log(`Uploading r2://${bucket}/${key}`);
   const result = spawnSync(
     "npx",
-    ["wrangler", "r2", "object", "put", `${bucket}/${key}`, "--file", tmpPath],
+    [
+      "wrangler",
+      "r2",
+      "object",
+      "put",
+      `${bucket}/${key}`,
+      "--file",
+      tmpPath,
+      "--remote",
+    ],
     { stdio: "inherit" },
   );
   rmSync(tmpPath, { force: true });

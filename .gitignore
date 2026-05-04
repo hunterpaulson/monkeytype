@@ -97,6 +97,7 @@ vite-build/
 #cloudflare y
 .cloudflareKey.txt
 .cloudflareKey_copy.txt
+.wrangler/
 
 frontend/static/adtest.html
 backend/lastId.txt
