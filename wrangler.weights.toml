@@ -11,4 +11,4 @@ pattern = "weights.typegpt.dev"
 custom_domain = true
 
 [vars]
-ALLOWED_ORIGIN = "https://typegpt.dev"
+ALLOWED_ORIGINS = "https://typegpt.dev,http://localhost:*,http://127.0.0.1:*"

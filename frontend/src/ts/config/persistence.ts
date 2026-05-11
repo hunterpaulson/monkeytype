@@ -6,13 +6,14 @@ import * as ConfigSchemas from "@monkeytype/schemas/configs";
 import { getDefaultConfig } from "../constants/default-config";
 import { migrateConfig } from "./utils";
 import { LocalStorageWithSchema } from "../utils/local-storage-with-schema";
+import { envConfig } from "virtual:env-config";
 import { isObject } from "../utils/misc";
 import { debounce } from "throttle-debounce";
 
 let configToSend: Partial<ConfigSchemas.Config> = {};
 
 export const configLS = new LocalStorageWithSchema({
-  key: "config",
+  key: envConfig.isTypeGptDemo ? "typegptConfig" : "config",
   schema: ConfigSchemas.ConfigSchema,
   fallback: getDefaultConfig(),
   migrate: (value, _issues) => {

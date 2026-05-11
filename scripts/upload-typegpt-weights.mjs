@@ -7,18 +7,27 @@ import { Readable } from "node:stream";
 import { finished } from "node:stream/promises";
 
 const bucket = process.env.TYPEGPT_WEIGHTS_BUCKET ?? "typegpt-weights";
-const sourceBaseUrl =
+const sourceRawBaseUrl =
   process.env.TYPEGPT_SOURCE_WEIGHTS_BASE_URL ??
   "https://raw.githubusercontent.com/hunterpaulson/webgpt-gpt2-weights/main/";
+const sourceMediaBaseUrl =
+  process.env.TYPEGPT_SOURCE_WEIGHTS_MEDIA_BASE_URL ??
+  "https://media.githubusercontent.com/media/hunterpaulson/webgpt-gpt2-weights/main/";
 
 const weightKeys = buildGpt2WeightKeys();
 
 for (const key of weightKeys) {
+  const sourceBaseUrl = key.endsWith(".bin")
+    ? sourceMediaBaseUrl
+    : sourceRawBaseUrl;
   const url = new URL(key, sourceBaseUrl).href;
   const tmpPath = join(tmpdir(), `typegpt-${basename(key)}`);
 
   console.log(`Downloading ${url}`);
   await downloadToFile(url, tmpPath);
+  if (key.endsWith(".bin")) {
+    assertNotGitLfsPointer(tmpPath, url);
+  }
 
   console.log(`Uploading r2://${bucket}/${key}`);
   const result = spawnSync(
@@ -79,4 +88,14 @@ async function downloadToFile(url, path) {
   }
 
   await finished(Readable.fromWeb(response.body).pipe(createWriteStream(path)));
+}
+
+function assertNotGitLfsPointer(path, url) {
+  const result = spawnSync("head", ["-c", "64", path], { encoding: "utf8" });
+
+  if (result.stdout.startsWith("version https://git-lfs.github.com/spec/")) {
+    throw new Error(
+      `Downloaded Git LFS pointer instead of binary data: ${url}`,
+    );
+  }
 }

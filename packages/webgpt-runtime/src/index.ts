@@ -83,19 +83,24 @@ export function createWebGptAssetUrlResolver(
   );
 
   return (relativePath) => {
-    if (relativePath === "weights/tokenization/vocab.bpe") {
+    const normalizedRelativePath = normalizeWeightAssetPath(relativePath);
+
+    if (normalizedRelativePath === "weights/tokenization/vocab.bpe") {
       return tokenizerAssets.vocabBpeUrl;
     }
 
-    if (relativePath === "weights/tokenization/gpt_tokens.json") {
+    if (normalizedRelativePath === "weights/tokenization/gpt_tokens.json") {
       return tokenizerAssets.gptTokensUrl;
     }
 
-    if (relativePath.startsWith("weights/")) {
-      return resolveWeightsAssetUrl(relativePath, normalizedWeightsBaseUrl);
+    if (normalizedRelativePath.startsWith("weights/")) {
+      return resolveWeightsAssetUrl(
+        normalizedRelativePath,
+        normalizedWeightsBaseUrl,
+      );
     }
 
-    return relativePath;
+    return normalizedRelativePath;
   };
 }
 
@@ -239,6 +244,12 @@ function resolveInputUrl(input: RequestInfo | URL): string {
 
 function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+}
+
+function normalizeWeightAssetPath(relativePath: string): string {
+  return relativePath.startsWith("weights/")
+    ? relativePath.replace(/\/+/g, "/")
+    : relativePath;
 }
 
 function resolveWeightsAssetUrl(

@@ -15,7 +15,7 @@
  *   - Added GPUBufferUsage / GPUShaderStage fallback constants for non-WebGPU
  *     environments (test / SSR)
  *   - Removed unused UI / visualization code (visuals.js)
- *   - No changes to model architecture, shader code, or numerical behavior
+ *   - Replaced GELU pow(x, 3.0) with x * x * x for WebGPU backend portability
  */
 
 const GPUBufferUsage = globalThis.GPUBufferUsage ?? {
@@ -1098,7 +1098,7 @@ class GeluBlockClass extends Block {
     const COEFF: vec4<f32> = vec4<f32>(0.044715);
     
     fn gelu_vec4(x: vec4<f32>) -> vec4<f32> {
-      let x_cubed: vec4<f32> = pow(x, vec4<f32>(3.0));
+      let x_cubed: vec4<f32> = x * x * x;
       let cdf_approx: vec4<f32> = HALF * (vec4<f32>(1.0) + tanh(SQRPI * (x + COEFF * x_cubed)));
   
       let result: vec4<f32> = x * cdf_approx;

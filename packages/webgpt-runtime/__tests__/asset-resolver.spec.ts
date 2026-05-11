@@ -34,4 +34,17 @@ describe("createWebGptAssetUrlResolver", () => {
       "https://example.com/webgpt-assets/weights/gpt2/params_gpt.json",
     );
   });
+
+  it("normalizes duplicate slashes in vendored weight paths", () => {
+    const resolveAssetUrl = createWebGptAssetUrlResolver({
+      weightsBaseUrl: "https://weights.typegpt.dev/",
+    });
+
+    expect(resolveAssetUrl("weights/gpt2//params_gpt.json")).toBe(
+      "https://weights.typegpt.dev/weights/gpt2/params_gpt.json",
+    );
+    expect(resolveAssetUrl("weights/gpt2//transformer.ln_f.bias_gpt.bin")).toBe(
+      "https://weights.typegpt.dev/weights/gpt2/transformer.ln_f.bias_gpt.bin",
+    );
+  });
 });

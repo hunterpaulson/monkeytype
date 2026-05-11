@@ -1,6 +1,8 @@
 import { queryOptions } from "@tanstack/solid-query";
 import { baseKey } from "./utils/keys";
 import Ape from "../ape";
+import { TYPEGPT_SERVER_CONFIGURATION } from "../constants/typegpt-server-configuration";
+import { envConfig } from "virtual:env-config";
 
 const queryKeys = {
   root: () => baseKey("serverConfiguration"),
@@ -14,6 +16,10 @@ export const getServerConfigurationQueryOptions = () =>
   queryOptions({
     queryKey: queryKeys.root(),
     queryFn: async () => {
+      if (envConfig.isTypeGptDemo) {
+        return TYPEGPT_SERVER_CONFIGURATION;
+      }
+
       const response = await Ape.configuration.get();
 
       if (response.status !== 200) {
